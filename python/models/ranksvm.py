@@ -1,12 +1,28 @@
 # -*- coding: utf-8 -*-
 
-# Ranking models.
+# Ranking models: this is for the binary care.
 
 from sklearn.base import BaseEstimator, ClassifierMixin
-from extras import MyLinearSVC
-from sklearn.linear_model import LogisticRegression
-from utils import choose_threshold
 import numpy as np
+
+
+def choose_threshold(s, y):
+    si = np.argsort(s)
+    s = s[si]
+    y = y[si]
+
+    maxF1 = -np.inf
+    bestTh = 0
+    for i in range(1, len(y)):
+        if y[i] != y[i-1]:
+            TP = np.sum(y[i:] == 1)
+            FP = np.sum(y[i:] == 0)
+            FN = np.sum(y[:i] == 1)
+            F1 = (2.*TP)/(2.*TP+FN+FP+1e-10)
+            if F1 > maxF1:
+                maxF1 = F1
+                bestTh = (s[i]+s[i-1])/2.
+    return bestTh
 
 
 def preprocess(X, y):
@@ -38,22 +54,20 @@ def preprocess(X, y):
 
 
 class RankSVM(BaseEstimator, ClassifierMixin):
-    def __init__(self, C=1):
+    def __init__(self, model):
         super(RankSVM, self).__init__()
-        self.C = C
-        self.coefs = []
-        self.classes_ = (0, 1)
+        self.model = model
+        if model is None:
+            from sklearn.svm import LinearSVC
+            self.model = LinearSVC(fit_intercept=False, penalty='l1', tol=1e-3,
+                                   dual=False)
 
     def fit(self, X, y):
-        # we only instantiate it here, so that sklearn can do its
-        # GridSearch validation magic with get_ and set_params()
-        self.estimator = MyLinearSVC(C=self.C, fit_intercept=False)
-        # could also be:
-        #self.estimator = LogisticRegression(C=self.C, fit_intercept=False)
+        self.classes_ = np.unique(y)  # required by sklearn
 
         dX, dy = preprocess(X, y)
-        self.estimator.fit(dX, dy)
-        self.coefs = self.estimator.coef_[0]
+        self.model.fit(dX, dy)
+        self.coefs = self.model.coef_[0]
 
         H = self.predict_proba(X)
         self.th = choose_threshold(H, y)
@@ -64,14 +78,8 @@ class RankSVM(BaseEstimator, ClassifierMixin):
         # it makes it nicer to have a common interface for the ROC curves
         return np.sum(self.coefs * X, axis=1)
 
+    def decision_function(self, X):
+        return self.predict_proba(X)
+
     def predict(self, X):
         return (self.predict_proba(X) >= self.th).astype(int)
-
-if __name__ == '__main__':
-    import test
-    names = []
-    models = []
-    for C in 2.**np.arange(-3, 11):
-        names.append('RankSVM %s' % str(C))
-        models.append(RankSVM(C))
-    test.test(names, models)
