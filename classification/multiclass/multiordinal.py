@@ -16,13 +16,10 @@ class MultiOrdinal(BaseEstimator, ClassifierMixin):
         for k in self.classes_[:-1]:
             Xpos = X[y > k]
             Xneg = X[y <= k]
-            print('Xpos:', Xpos.shape, 'Xneg:', Xneg.shape)
             _X = np.r_[Xpos, Xneg]
             _y = np.r_[np.ones(len(Xpos), int), np.zeros(len(Xneg), int)]
 
             C = np.exp(self.alpha * np.abs(y-k-0.5))
-            print(_y)
-            print('_X:', _X.shape, '_y:', _y.shape, 'C:', C.shape)
             m = clone(self.estimator).fit(_X, _y, sample_weight=C)
             self.ensemble.append(m)
         return self
