@@ -11,6 +11,7 @@ The structure of the repository is currently structured as:
 - ranking
 - quantile
 - timeseries
+- scores
 
 A good amount of them were developed when writting:
 * R. Cruz, K. Fernandes, J. S. Cardoso, and J. F. P. Costa. [Tackling Class Imbalance with Ranking](http://vcmi.inescporto.pt/reproducible_research/ijcnn2016/ClassImbalance/). In International Joint Conference on Neural Networks (IJCNN). IEEE, 2016. They were written with the supervision of [Kelwin Fernandes](https://github.com/kelwinfc) and James S. Cardoso.
@@ -60,6 +61,13 @@ These are some easy, but cumbersome, methods for timeseries that are sorely miss
 
 - **GrowingWindow** and **SlidingWindow:** timeseries cross validation methods
 - **delay:** function to add a delay to a time-indexed variable, to use on an autoregressive model
+
+## Scores
+
+Scores missing from sklearn:
+
+- **pinball:** MAE can be used for the median; this is a generalization for other quantiles
+- **MMAE** and **AMAE:** scoring functions used in imbalance ordinal contexts (it's the average and maximum MAE across classes, independent of frequency)
 
 -----------------
 
