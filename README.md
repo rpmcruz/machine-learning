@@ -32,6 +32,7 @@ Here I have:
 - **extreme-learning:** [extreme machine learning](https://en.wikipedia.org/wiki/Extreme_learning_machine) model
 - **multiclass:** one-vs-all and multiordinal ensembles, which turn binary classifiers into multiclass models
 - **neuralnet:** here I have a simple neural network implemented in pure Python and in C++ with Python-bindings, implemented both with batch and online iteration
+- **svm:** dual and primal implementations of SVM.
 
 ## Ranking
 
