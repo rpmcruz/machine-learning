@@ -4,14 +4,20 @@ Some implementations of data mining algorithms in Python.
 
 These are not "inventions", but merely implementations of algorithms in the literature that are either not implemented in Python, or of which I required my own implementation so that I could build upon them.
 
-The structure of the repository is currently structured as:
+The structure of the repository is currently structured in families:
+
+- ensemble
+- neuralnet
+- svm
+- quantile.
+
+Also we have utilities for:
 
 - preprocessing
-- classification
-- ranking
-- quantile
 - timeseries
-- scores
+- scoring metrics.
+
+Notice the structure is in families, not function such as classification or ranking. Inside neuralnet, you can find the different function implementations. The exception being quantile regressions with its own directory.
 
 A good amount of them were developed when writting:
 * R. Cruz, K. Fernandes, J. S. Cardoso, and J. F. P. Costa. [Tackling Class Imbalance with Ranking](http://vcmi.inescporto.pt/reproducible_research/ijcnn2016/ClassImbalance/). In International Joint Conference on Neural Networks (IJCNN). IEEE, 2016. They were written with the supervision of [Kelwin Fernandes](https://github.com/kelwinfc) and James S. Cardoso.
