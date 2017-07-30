@@ -1,27 +1,21 @@
 # implementation based on Pegasos (Shwartz et al, 2007)
 
-type SVM
+type SVR
     lambda     ::Float64
 
     # internal
     bias       ::Float64
     weights    ::Array{Float64}
 
-    SVM(lambda) =
+    SVR(lambda) =
         new(lambda, 0, [])
 end
 
-function fit(self::SVM, X::Array{Float64,2}, y::Array{Int64})
+function fit(self::SVR, X::Array{Float64,2}, y::Array{Float64})
     nobs = length(y)
     @assert size(X, 1) == nobs
 
-    # use -1,+1 as classes
-    if sort(unique(y))[1] == 0
-        y = copy(y)
-        y[y .== 0] = -1
-    end
-    @assert sort(unique(y)) == [-1, +1]  # binary classification only
-
+    epsilon = 0.1
     maxiter = 100
     self.weights = zeros(size(X, 2))
     self.bias = 0
@@ -43,9 +37,11 @@ function fit(self::SVM, X::Array{Float64,2}, y::Array{Int64})
 
         # fix support vectors
         for i in 1:nobs
-            if y[i]*sum((self.weights .* X[i,:]) + self.bias) < 1
-                dw += (1/nobs) * (-y[i]*X[i,:])
-                db += (1/nobs) * (-y[i])
+            dist = y[i] - sum((self.weights .* X[i,:]) - self.bias)
+            if abs(dist) > epsilon
+                s = sign(epsilon-dist)
+                dw += (1/nobs) * X[i,:] * s
+                db += (1/nobs) * s
             end
         end
 
@@ -71,7 +67,7 @@ function fit(self::SVM, X::Array{Float64,2}, y::Array{Int64})
     self
 end
 
-function predict(self::SVM, X::Array{Float64,2})
+function predict(self::SVR, X::Array{Float64,2})
     a = broadcast(.*, X, self.weights')
-    Array{Int}(sum((X .* self.weights') + self.bias, 2) .>= 0)
+    sum((X .* self.weights') + self.bias, 2)
 end
