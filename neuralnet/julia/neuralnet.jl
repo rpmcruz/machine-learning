@@ -108,10 +108,49 @@ function bpass(nn::NeuralNet, y::Array{Float64}, A::Array{Array{Float64,2}}, eta
     (dW, dB)
 end
 
-function fit(nn::NeuralNet, X::Array{Float64,2}, y::Array{Float64}, eta::Float64, maxit::Int, rprop::Bool)
-    last_err = Inf
+function backprop(nn::NeuralNet, X::Array{Float64,2}, y::Array{Float64}, eta::Float64, maxit::Int)
+    for epoch in 1:maxit
+        A = fpass(nn, X)
+        dW, dB = bpass(nn, y, A, eta)
 
-    # rprop
+        for l in 1:length(nn.layers)
+            nn.layers[l].W -= eta * dW[l]
+            nn.layers[l].B -= eta * dB[l]
+        end
+
+        if nn.verbose & (epoch % (maxit/10) == 0)
+            err = mean(nn.loss(y, A[end], false))
+            @printf("%4d %.2f\n", epoch, err)
+        end
+    end
+end
+
+function backprop_momentum(nn::NeuralNet, X::Array{Float64,2}, y::Array{Float64}, eta::Float64, maxit::Int)
+    # https://en.wikipedia.org/wiki/Stochastic_gradient_descent#Momentum
+
+    deltas_W = [zeros(size(layer.W)) for layer in nn.layers]
+    deltas_B = [zeros(size(layer.B)) for layer in nn.layers]
+    alpha = eta/10
+
+    for epoch in 1:maxit
+        A = fpass(nn, X)
+        dW, dB = bpass(nn, y, A, eta)
+
+        for l in 1:length(nn.layers)
+            deltas_W[l] = (eta * dW[l]) .+ (alpha * deltas_W[l])
+            deltas_B[l] = (eta * dB[l]) .+ (alpha * deltas_B[l])
+            nn.layers[l].W -= deltas_W[l]
+            nn.layers[l].B -= deltas_B[l]
+        end
+
+        if nn.verbose & (epoch % (maxit/10) == 0)
+            err = mean(nn.loss(y, A[end], false))
+            @printf("%4d %.2f\n", epoch, err)
+        end
+    end
+end
+
+function rprop(nn::NeuralNet, X::Array{Float64,2}, y::Array{Float64}, eta::Float64, maxit::Int)
     etas = [0.5, 1, 1.2]
     last_dW = [zeros(size(layer.W)) for layer in nn.layers]
     last_dB = [zeros(size(layer.B)) for layer in nn.layers]
@@ -125,54 +164,41 @@ function fit(nn::NeuralNet, X::Array{Float64,2}, y::Array{Float64}, eta::Float64
         A = fpass(nn, X)
         dW, dB = bpass(nn, y, A, eta)
 
-        if rprop
-            for l in 1:length(nn.layers)
-                # update deltas
-                gt_0 = last_dW[l] .* dW[l] .> 0
-                ge_0 = last_dW[l] .* dW[l] .>= 0
-                E = etas[gt_0 + ge_0 + 1]
-                deltas_W[l] .*= E
-                deltas_W[l] = max(deltas_W[l], delta_min)
-                deltas_W[l] = min(deltas_W[l], delta_max)
+        for l in 1:length(nn.layers)
+            # update deltas
+            gt_0 = last_dW[l] .* dW[l] .> 0
+            ge_0 = last_dW[l] .* dW[l] .>= 0
+            E = etas[gt_0 + ge_0 + 1]
+            deltas_W[l] .*= E
+            deltas_W[l] = max(deltas_W[l], delta_min)
+            deltas_W[l] = min(deltas_W[l], delta_max)
 
-                gt_0 = last_dB[l] .* dB[l] .> 0
-                ge_0 = last_dB[l] .* dB[l] .>= 0
-                E = etas[gt_0 + ge_0 + 1]
-                deltas_B[l] .*= E
-                deltas_B[l] = max(deltas_B[l], delta_min)
-                deltas_B[l] = min(deltas_B[l], delta_max)
+            gt_0 = last_dB[l] .* dB[l] .> 0
+            ge_0 = last_dB[l] .* dB[l] .>= 0
+            E = etas[gt_0 + ge_0 + 1]
+            deltas_B[l] .*= E
+            deltas_B[l] = max(deltas_B[l], delta_min)
+            deltas_B[l] = min(deltas_B[l], delta_max)
 
-                # update weights (using the deltas)
-                nn.layers[l].W -= deltas_W[l] .* sign(dW[l])
-                nn.layers[l].B -= deltas_B[l] .* sign(dB[l])
+            # update weights (using the deltas)
+            nn.layers[l].W -= deltas_W[l] .* sign(dW[l])
+            nn.layers[l].B -= deltas_B[l] .* sign(dB[l])
 
-                # save derivatives
-                lt_0 = last_dW[l] .* dW[l] .< 0
-                #if any(lt_0)
-                #    println("Piorou ", l)
-                #end
-                last_dW[l] = dW[l] .* (1-lt_0)
-                lt_0 = last_dB[l] .* dB[l] .< 0
-                last_dB[l] = dB[l] .* (1-lt_0)
-            end
-        else
-            for l in 1:length(nn.layers)
-                nn.layers[l].W -= eta * dW[l]
-                nn.layers[l].B -= eta * dB[l]
-            end
+            # save derivatives
+            lt_0 = last_dW[l] .* dW[l] .< 0
+            #if any(lt_0)
+            #    println("Piorou ", l)
+            #end
+            last_dW[l] = dW[l] .* (1-lt_0)
+            lt_0 = last_dB[l] .* dB[l] .< 0
+            last_dB[l] = dB[l] .* (1-lt_0)
         end
 
-        err = mean(nn.loss(y, A[end], false))
         if nn.verbose & (epoch % (maxit/10) == 0)
+            err = mean(nn.loss(y, A[end], false))
             @printf("%4d %.2f\n", epoch, err)
         end
-        #if abs(err/last_err-1) < 1e-8  # has converged
-        #    return true
-        #end
-        last_err = err
     end
-    #println("Warning: did not converge after $(maxit) iterations")
-    false
 end
 
 function predict(nn::NeuralNet, X::Array{Float64,2})
