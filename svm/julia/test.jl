@@ -6,6 +6,10 @@ df = dataset("datasets", "iris")
 X = Array(df[:, 1:4])
 y = Array{Int}([c == "setosa" for c in df[:, 5]])
 
+function accuracy(y, yp)
+    mean(y .== yp)
+end
+
 svm = SVM(0)
 for ix in  StratifiedKfold(y, 3)
     Xtr = X[ix,:]
@@ -14,5 +18,5 @@ for ix in  StratifiedKfold(y, 3)
     Xts = X[not_ix,:]
     yts = y[not_ix]
     fit(svm, Xtr, ytr)
-    @printf("Accuracy: %.3f\n", sum(predict(svm, Xts) .== yts)/length(y))
+    @printf("Accuracy: %.3f\n", accuracy(yts, predict(svm, Xts)))
 end
