@@ -1,15 +1,10 @@
-# -*- coding: utf-8 -*-
-
-# NOTE: I convert y from {0,1} to {-1,+1} and then back again because
-# it makes it easier for the learning method :P
-
 from sklearn.base import clone
 from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.tree import DecisionTreeClassifier
-from utils import choose_threshold
 import numpy as np
-import itertools
 
+# NOTE: I convert y from {0,1} to {-1,+1} and then back again because
+# it makes it easier for the learning method :P
 
 class AdaBoost(BaseEstimator, ClassifierMixin):
     def __init__(self, T, base_estimator=None, balanced=False):
@@ -17,7 +12,7 @@ class AdaBoost(BaseEstimator, ClassifierMixin):
             base_estimator = DecisionTreeClassifier(max_depth=1)
         self.estimator = base_estimator
         self.T = T
-        self.balanced = False
+        self.balanced = balanced
         self.classes_ = (0, 1)
 
     def fit(self, X, y):
@@ -32,7 +27,7 @@ class AdaBoost(BaseEstimator, ClassifierMixin):
         self.a = [0]*self.T
         epsilon = 1e-6  # to avoid division by zero (Schapire and Singer, 1999)
 
-        for t in xrange(self.T):
+        for t in range(self.T):
             self.h[t] = clone(self.estimator).fit(X, y, D)
             yp = self.h[t].predict(X)
 
@@ -42,14 +37,14 @@ class AdaBoost(BaseEstimator, ClassifierMixin):
             D = D/np.sum(D)  # normalize distribution
         return self
 
+    def decision_function(self, X):
+        return self.predict_proba(X)
+
     def predict_proba(self, X):
         # thresholds: we overload this function for easy integration with the
         # other models.
-        return np.sum(
-            [self.a[t]*self.h[t].predict(X) for t in xrange(self.T)], 0)
+        return np.sum([a*h.predict(X) for a, h in zip(self.a, self.h)], 0)
 
     def predict(self, X):
         s = self.predict_proba(X)
-        y = np.sign(s)
-        #y[y == 0] = 1  # HACK: sometimes sign is 0
-        return (y+1)/2  # change domain back to {0,1}
+        return (np.sign(s)+1)/2  # change domain back to {0,1}

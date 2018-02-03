@@ -5,7 +5,7 @@ import numpy as np
 # Multi-class ensemble where classes are only compared to neighbor (ordinal)
 # classes
 
-class MultiOrdinal(BaseEstimator, ClassifierMixin):
+class PrefixVsSuffix(BaseEstimator, ClassifierMixin):
     def __init__(self, estimator, alpha=1):
         self.estimator = estimator
         self.alpha = alpha
@@ -20,11 +20,13 @@ class MultiOrdinal(BaseEstimator, ClassifierMixin):
             _y = np.r_[np.ones(len(Xpos), int), np.zeros(len(Xneg), int)]
 
             C = np.exp(self.alpha * np.abs(y-k-0.5))
-            m = clone(self.estimator).fit(_X, _y, sample_weight=C)
+            m = clone(self.estimator)
+            try:
+                m.fit(_X, _y, sample_weight=C)
+            except:
+                m.fit(_X, _y)
             self.ensemble.append(m)
         return self
 
     def predict(self, X):
-        yps = [m.predict(X) for m in self.ensemble]
-        r = 1+np.sum(yps, 0)
-        return r
+        return np.sum([m.predict(X) for m in self.ensemble], 0)
