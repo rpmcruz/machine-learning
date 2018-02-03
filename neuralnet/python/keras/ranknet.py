@@ -49,9 +49,9 @@ class RankNet(BaseEstimator, RegressorMixin):
     def fit(self, X, y):
         self.model = create_model(X.shape[1], self.nhidden, self.l2)
         X1, X2, yy, ww = preprocess(X, y)
-        cb = EarlyStopping('loss', 0.001, 10)
+        cb = EarlyStopping('loss', 0.001, 1)
         self.logs = self.model.fit(
-            [X1, X2], yy, 128, 10000, 0, callbacks=[cb], sample_weight=ww)
+            [X1, X2], yy, 512, 10000, 0, callbacks=[cb], sample_weight=ww)
         return self
 
     def predict(self, X):

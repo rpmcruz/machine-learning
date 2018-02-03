@@ -9,20 +9,16 @@ import numpy as np
 # Ordinal network encoding:
 # http://orca.st.usm.edu/~zwang/files/rank.pdf
 
-def create_model(nfeatures, nhidden, l2, K, is_ordinal):
+def create_model(nfeatures, nhidden, l2, K):
     reg = regularizers.l2(l2) if l2 else None
 
     input_layer = Input([nfeatures])
     hidden = Dense(
         nhidden, activation='tanh', kernel_regularizer=reg)(input_layer)
-    if is_ordinal:
-        act = 'softmax'
-    else:
-        act = 'sigmoid'
-    output = Dense(K, activation=act)(hidden)
+    output = Dense(K, activation='sigmoid')(hidden)
     
     model = Model(input_layer, output)
-    model.compile('adam', 'categorical_crossentropy')
+    model.compile('adam', 'binary_crossentropy')
     #model.summary()
     return model
 
@@ -42,11 +38,11 @@ class MultiClassNet(BaseEstimator, ClassifierMixin):
         self.classes_ = np.unique(y)
         K = len(self.classes_)
         yy = OneHotEncoder(sparse=False).fit_transform(y[:, np.newaxis])
-        self.model = create_model(X.shape[1], self.nhidden, self.l2, K, False)
-        cb = EarlyStopping('loss', 0.001, 10)
+        self.model = create_model(X.shape[1], self.nhidden, self.l2, K)
+        cb = EarlyStopping('loss', 0.001, 1)
         ww = class_weight(y) if self.balanced else None
         self.logs = self.model.fit(
-            X, yy, 128, 10000, 0, callbacks=[cb], class_weight=ww)
+            X, yy, 512, 10000, 0, callbacks=[cb], class_weight=ww)
         return self
 
     def predict_proba(self, X):
@@ -65,18 +61,18 @@ class OrdinalNet(BaseEstimator, ClassifierMixin):
     def fit(self, X, y):
         self.classes_ = np.unique(y)
         K = len(self.classes_)
-        yy = np.zeros((len(y), K), int)  # ordinal encoding
+        yy = np.zeros((len(y), K-1), int)  # ordinal encoding
         for i,_y in enumerate(y):
-            yy[i, 0:_y+1] = 1
-        self.model = create_model(X.shape[1], self.nhidden, self.l2, K, True)
-        cb = EarlyStopping('loss', 0.001, 10)
+            yy[i, 0:_y] = 1
+        self.model = create_model(X.shape[1], self.nhidden, self.l2, K-1)
+        cb = EarlyStopping('loss', 0.001, 1)
         ww = class_weight(y) if self.balanced else None
         self.logs = self.model.fit(
-            X, yy, 128, 10000, 0, callbacks=[cb], class_weight=ww)
+            X, yy, 512, 10000, 0, callbacks=[cb], class_weight=ww)
         return self
 
     def predict_proba(self, X):
         return self.model.predict(X)
 
     def predict(self, X):
-        return np.argmax(self.model.predict(X), 1)
+        return np.sum(self.model.predict(X) > 0.5, 1)
